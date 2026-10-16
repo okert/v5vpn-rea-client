@@ -1,5 +1,18 @@
 # v5vpn-rea
 
+这是 [hygkui/v5vpn-rea-client](https://github.com/hygkui/v5vpn-rea-client) 的 macOS 修改版。原仓库实现了网御星云 / LeadSec V5VPN 的 SSL VPN 门户客户端。本仓库在此基础上改成只开本机代理，并在一台 MacBook Pro（Apple M3 Pro）上完成连接测试，可以登录网关并访问已授权的内网地址。
+
+## 相对原仓库的修改
+
+- 网关把资源端口授权成整段 `1-65535` 时，原客户端建不出监听。现在只在本机开一个 SOCKS5（`127.0.0.1:2080`）和一个 HTTP 代理（`127.0.0.1:2081`），按地址和端口范围转发。
+- 不修改系统网关、路由、DNS 或系统代理，可以和 Karing、Tunnelblick、V2rayN 同时运行。未授权的目标会被拒绝。
+- 网关和勾选「记住密码」的账号保存在本机 `~/Library/Application Support/v5vpn-rea/setting.xml`，不进入仓库。
+- 菜单栏和已连接页面显示这两个代理地址。
+- 窗口关闭按钮只隐藏窗口。点 Dock 图标或菜单栏「显示主界面」会重新打开。Dock 的「退出」直接断开并结束程序。
+- 连上后打开单独的已连接页面。macOS 的网页视图在原页面里切换时会只剩底色。
+
+---
+
 基于 **REA (Reverse Engineer Anything)** 逆向分析技术与 **MyGo** 跨平台桌面技术架构，重新实现的现代化 V5VPN 客户端。
 
 ---
