@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>V5VPN 安全客户端</title>
+  <script>
+    if (location.hash === '#connected') document.documentElement.classList.add('start-connected');
+  </script>
   <link rel="stylesheet" href="style.css">
   <link rel="icon" type="image/png" href="icon.png">
 </head>
@@ -16,7 +19,7 @@
           <div class="brand-logo-wrap">
             <img src="icon.png" width="68" height="68" alt="V5VPN Logo" class="brand-img">
           </div>
-          <h1 class="brand-title">V5VPN 客户端 <span class="version-badge">v0.1.1</span></h1>
+          <h1 class="brand-title">V5VPN 客户端 <span class="version-badge">v0.1.9</span></h1>
           <p class="brand-subtitle">安全应用层 SSL-VPN 代理系统</p>
         </div>
 
@@ -85,7 +88,7 @@
         </form>
 
         <div class="login-footer">
-          <span>V5VPN Client <span class="app-version-text">v0.1.1</span> &bull; 免驱应用层隧道架构</span>
+          <span>V5VPN Client <span class="app-version-text">v0.1.9</span> &bull; 免驱应用层隧道架构</span>
           <div class="footer-links">
             <a href="https://github.com/hygkui/v5vpn-rea-client" class="github-link js-open-external" data-url="https://github.com/hygkui/v5vpn-rea-client" title="在浏览器中打开 GitHub 仓库">
             <svg class="github-icon" viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
@@ -99,13 +102,13 @@
   </div>
 
   <!-- ==================== 2. 登录后视图 (连接成功后展示) ==================== -->
-  <div id="view-connected" class="view-connected" style="display: none;">
+  <div id="view-connected" class="view-connected">
     <!-- 顶部状态栏 -->
     <header class="connected-header">
       <div class="header-brand">
         <img src="icon.png" width="38" height="38" alt="Logo" class="header-logo">
         <div class="header-titles">
-          <div class="header-main-title">V5VPN 安全隧道 <span class="version-badge">v0.1.1</span></div>
+          <div class="header-main-title">V5VPN 安全隧道 <span class="version-badge">v0.1.9</span></div>
           <div class="header-sub-meta">
             <span class="live-dot"></span>
             <span id="connected-gw-name">已连接</span>
@@ -142,8 +145,12 @@
             <div id="session-ip-val" class="stat-value">-</div>
           </div>
           <div class="status-col">
-            <div class="stat-label">会话 ID (Session)</div>
-            <div class="stat-value"><code id="session-id-val">-</code></div>
+            <div class="stat-label">本地 SOCKS5 代理</div>
+            <div class="stat-value"><code id="socks-proxy-val">-</code></div>
+          </div>
+          <div class="status-col">
+            <div class="stat-label">本地 HTTP 代理</div>
+            <div class="stat-value"><code id="http-proxy-val">-</code></div>
           </div>
         </div>
       </section>
@@ -182,7 +189,9 @@
           <div class="tip-icon">💡</div>
           <div class="tip-body">
             <strong>内网资源访问指南：</strong>
-            本客户端采用纯应用层 SSL 代理技术。请直接点击 <strong>【在浏览器打开】</strong> 访问映射后的 <strong>本地代理地址 (127.0.0.1:端口)</strong> 即可直接穿透访问受保护的内网系统。
+            本客户端只在本机监听代理，不修改系统网关、路由或系统代理。把浏览器或客户端的代理设为表格里的
+            <strong>SOCKS5</strong>（默认 <strong>127.0.0.1:2080</strong>）或 <strong>HTTP</strong>（默认 <strong>127.0.0.1:2081</strong>），
+            再访问表格中的内网地址。不在授权范围内的目标会被拒绝，其它软件的流量不受影响。
           </div>
         </div>
       </section>
@@ -204,7 +213,7 @@
 
     <!-- 底部 GitHub 开源入口 -->
     <footer class="connected-footer">
-      <span>V5VPN Client <span class="app-version-text">v0.1.1</span> &bull; 免驱应用层隧道架构</span>
+      <span>V5VPN Client <span class="app-version-text">v0.1.9</span> &bull; 免驱应用层隧道架构</span>
       <span class="footer-sep">&bull;</span>
       <a href="https://github.com/hygkui/v5vpn-rea-client" class="github-link js-open-external" data-url="https://github.com/hygkui/v5vpn-rea-client" title="在浏览器中打开 GitHub 仓库">
         <svg class="github-icon" viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>

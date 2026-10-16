@@ -430,13 +430,14 @@ button.github-link {
 }
 
 /* ==================== 2. 登录后视图 (工作台) ==================== */
+html.start-connected .view-login { display: none !important; }
+html.start-connected .view-connected { display: flex !important; }
+
 .view-connected {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  width: 100vw;
-  background-color: var(--bg-primary);
-  overflow: hidden;
+  display: none;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
 }
 
 .connected-header {

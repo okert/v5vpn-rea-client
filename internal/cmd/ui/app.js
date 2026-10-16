@@ -32,7 +32,8 @@
   const connectedGwName = document.getElementById('connected-gw-name');
   const sessionUserVal = document.getElementById('session-user-val');
   const sessionIpVal = document.getElementById('session-ip-val');
-  const sessionIdVal = document.getElementById('session-id-val');
+  const socksProxyVal = document.getElementById('socks-proxy-val');
+  const httpProxyVal = document.getElementById('http-proxy-val');
   const resCount = document.getElementById('res-count');
   const resourcesTbody = document.getElementById('resources-tbody');
   const disconnectBtn = document.getElementById('disconnect-btn');
@@ -53,9 +54,6 @@
   // Backend Bridge API (HTTP API or IPC)
   const api = {
     async getConfig() {
-      if (window.VPNService && window.VPNService.getConfig) {
-        return await window.VPNService.getConfig();
-      }
       const res = await fetch('/api/config');
       return await res.json();
     },
@@ -90,9 +88,6 @@
       return await res.json();
     },
     async getStatus() {
-      if (window.VPNService && window.VPNService.getStatus) {
-        return await window.VPNService.getStatus();
-      }
       const res = await fetch('/api/status');
       return await res.json();
     },
@@ -442,17 +437,19 @@
   // Switch to Connected View
   function showConnectedView(info) {
     isConnected = true;
-    viewLogin.style.display = 'none';
-    viewConnected.style.display = 'flex';
-    api.setWindowSize('connected');
+    // A separate document. Toggling the connected panel inside this page
+    // leaves a blank WKWebView on macOS.
+    location.href = '/connected.html';
+    return;
 
     if (currentGateway) {
       connectedGwName.textContent = `${currentGateway.name} (${currentGateway.ip}:${currentGateway.port})`;
     }
     sessionUserVal.textContent = usernameInput.value.trim() || '-';
     if (info) {
-      sessionIdVal.textContent = info.sessionId || '-';
       sessionIpVal.textContent = info.loginAddress || (currentGateway ? `${currentGateway.ip}:${currentGateway.port}` : '-');
+      if (socksProxyVal) socksProxyVal.textContent = info.socks || '-';
+      if (httpProxyVal) httpProxyVal.textContent = info.httpProxy || '-';
       renderResources(info.resources || []);
     }
   }
@@ -491,13 +488,7 @@
     }
 
     resources.forEach(r => {
-      const parts = (r.localProxy || '').split(':');
-      const localPort = parts[parts.length - 1] || '';
-      let accessUrl = r.accessUrl;
-      if (!accessUrl) {
-        const isHttps = r.remotePort === '443' || r.remotePort === '8443' || (r.name && (r.name.toLowerCase().includes('https') || r.name.includes('堡垒')));
-        accessUrl = (isHttps ? 'https://127.0.0.1:' : 'http://127.0.0.1:') + localPort;
-      }
+      const accessUrl = r.localProxy || r.accessUrl || '';
 
       const tr = document.createElement('tr');
       tr.innerHTML = `

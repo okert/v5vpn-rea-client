@@ -24,7 +24,7 @@ var uiEmbedFS embed.FS
 // TestAppVersionMatchesMygoJSON test fails the build if they drift.
 // NOTE: "2.0" is the gateway protocol version (/vpn/version.xml), not the
 // app version — do not "fix" this back to v2.0.0.
-var AppVersion = "v0.1.1"
+var AppVersion = "v0.1.9"
 
 var mainWindow *mygo.Window
 
@@ -81,6 +81,10 @@ func main() {
 	}
 	actualPort := startHTTPServer(serverPort, uiFS, vpnService)
 
+	// Name the app before Run so PathUserData is ~/Library/Application Support/v5vpn-rea
+	// (the same directory DefaultUserDataDir uses) instead of the executable name.
+	mygo.App.SetName("v5vpn-rea")
+
 	// Initialize MyGo Desktop Framework
 	log.Printf("Starting V5VPN Client with MyGo framework...")
 	// Belt-and-braces: even if a quit is triggered by a code path that
@@ -107,60 +111,49 @@ func main() {
 
 	mygo.App.WhenReady(func() {
 		win := mygo.NewWindow(mygo.WindowOptions{
-			Title:  fmt.Sprintf("V5VPN 现代客户端 %s (MyGo)", AppVersion),
-			Width:  460,
-			Height: 700,
-			URL:    fmt.Sprintf("http://127.0.0.1:%d/index.html", actualPort),
+			Title:           fmt.Sprintf("V5VPN 现代客户端 %s", AppVersion),
+			Width:           980,
+			Height:          720,
+			URL:             fmt.Sprintf("http://127.0.0.1:%d/index.html", actualPort),
+			BackgroundColor: "#0b1120",
 		})
 		mainWindow = win
 		var isExiting bool
+		showMain := func() {
+			if win == nil {
+				return
+			}
+			win.Show()
+			win.Restore()
+			win.Focus()
+		}
 
 		if win != nil {
 			log.Printf("V5VPN desktop window opened successfully.")
 			if iconData, err := fs.ReadFile(uiFS, "icon.png"); err == nil && len(iconData) > 0 {
 				_ = win.SetIcon(iconData)
 			}
-			// Ask user whether to minimize to tray or completely quit
+			// The window close button hides the window and leaves the VPN
+			// running. A real quit (Dock > Quit, Cmd+Q) sets isExiting from
+			// OnBeforeQuit before this fires, so the window is allowed to close.
 			win.OnClose(func(e *mygo.CloseEvent) {
 				if isExiting {
 					return
 				}
 				e.PreventDefault()
-				go func() {
-					res, err := mygo.Dialog.Message(mygo.MessageOptions{
-						Parent:        win,
-						Title:         "V5VPN 客户端",
-						Message:       "请选择关闭操作",
-						Detail:        "“最小化到托盘”将保持 VPN 并在后台运行；“完全退出”将断开连接并完全退出程序。",
-						Buttons:       []string{"最小化到托盘", "完全退出", "取消"},
-						DefaultButton: 0,
-						CancelButton:  2,
-					})
-					if err != nil {
-						mygo.RunOnMain(func() { win.Hide() })
-						return
-					}
-					switch res.Button {
-					case 0: // 最小化到托盘
-						mygo.RunOnMain(func() {
-							win.Hide()
-							log.Printf("Window minimized to system tray.")
-						})
-					case 1: // 完全退出（可选是否重启用于自更新）
-						log.Printf("Exiting V5VPN client upon user confirmation...")
-						isExiting = true
-						_, _ = vpnService.Logout()
-						mygo.RunOnMain(func() {
-							win.Destroy()
-							mygo.App.Quit()
-							os.Exit(0)
-						})
-					case 2: // 取消
-						// User cancelled close
-					}
-				}()
+				win.Hide()
 			})
 		}
+		mygo.App.OnBeforeQuit(func(e *mygo.QuitEvent) {
+			isExiting = true
+		})
+		// Dock icon click. A hidden window is not "visible", so AppKit does
+		// not bring it back on its own.
+		mygo.App.OnActivate(func(bool) {
+			if !isExiting {
+				showMain()
+			}
+		})
 
 		// Setup System Tray with crisp 32x32 PNG Icon
 		tray, trayErr := mygo.NewTray(mygo.TrayOptions{
@@ -180,11 +173,20 @@ func main() {
 			var statusLabel string
 			var isConn bool
 
+			socksLabel := "SOCKS5  未连接"
+			httpLabel := "HTTP    未连接"
 			if statusStr == "Connected" {
 				gwName := vpnService.GetConfig().LastUseGateway
 				statusLabel = fmt.Sprintf("状态: 已连接 [%s]", gwName)
 				isConn = true
-				tray.SetToolTip(fmt.Sprintf("V5VPN - 已连接 [%s]", gwName))
+				ends, _ := vpnService.LocalProxy()
+				if ends.SOCKS != "" {
+					socksLabel = "SOCKS5  " + ends.SOCKS
+				}
+				if ends.HTTP != "" {
+					httpLabel = "HTTP    " + ends.HTTP
+				}
+				tray.SetToolTip(fmt.Sprintf("V5VPN 已连接  SOCKS5 %s", ends.SOCKS))
 				_ = tray.SetIcon(generateTrayIcon(true), false)
 			} else if statusStr == "Connecting" {
 				statusLabel = "状态: 正在连接..."
@@ -201,15 +203,19 @@ func main() {
 					Label:    statusLabel,
 					Disabled: true,
 				},
+				{
+					Label:    socksLabel,
+					Disabled: true,
+				},
+				{
+					Label:    httpLabel,
+					Disabled: true,
+				},
 				mygo.Separator(),
 				{
 					Label: "显示主界面",
 					Click: func(item *mygo.MenuItem, w *mygo.Window) {
-						if win != nil {
-							win.Show()
-							win.Restore()
-							win.Focus()
-						}
+						showMain()
 					},
 				},
 				{
@@ -276,11 +282,7 @@ func main() {
 						if gw != nil && len(gw.SavedAccounts) > 0 {
 							go vpnService.Login(gw.Name, gw.SavedAccounts[0].Username, gw.SavedAccounts[0].Password, "", true, false)
 						} else {
-							if win != nil {
-								win.Show()
-								win.Restore()
-								win.Focus()
-							}
+							showMain()
 						}
 					},
 				})
@@ -314,11 +316,7 @@ func main() {
 
 		// Left click on tray brings window to front
 		tray.OnClick(func() {
-			if win != nil {
-				win.Show()
-				win.Restore()
-				win.Focus()
-			}
+			showMain()
 		})
 
 		// Right click on tray opens context menu
@@ -378,12 +376,9 @@ func startHTTPServer(port int, uiFS fs.FS, vpnService *service.VPNService) int {
 		if mainWindow != nil {
 			mygo.RunOnMain(func() {
 				switch req.Mode {
-				case "login":
-					mainWindow.SetSize(460, 700)
-					mainWindow.Center()
-				case "connected":
-					mainWindow.SetSize(1248, 832)
-					mainWindow.Center()
+				case "login", "connected":
+					// Keep the size the window opened at. Resizing the web
+					// view on connect left a blank window on macOS.
 				case "settings":
 					mainWindow.SetSize(720, 620)
 					mainWindow.Center()

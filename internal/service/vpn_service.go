@@ -31,6 +31,9 @@ type VPNService struct {
 
 // NewVPNService initializes the VPN service with loaded settings
 func NewVPNService(onLog func(string)) *VPNService {
+	if config.UserDataDir() == "" {
+		config.SetUserDataDir(config.DefaultUserDataDir())
+	}
 	cfg, err := config.LoadSettingXML("")
 	if err != nil {
 		// Provide default config if not found
@@ -121,7 +124,7 @@ func (s *VPNService) CheckForUpdates() *UpdateInfo {
 	current := s.appVersion
 	s.mu.Unlock()
 	if current == "" {
-		current = "v0.1.1"
+		current = "v0.1.9"
 	}
 
 	repo := "hygkui/v5vpn-rea-client"
@@ -166,6 +169,23 @@ func (s *VPNService) Log(level string, format string, args ...any) {
 	if s.onLog != nil {
 		go s.onLog(formatted)
 	}
+}
+
+// ProxyEndpoints is the local SOCKS5 and HTTP proxy while connected.
+type ProxyEndpoints struct {
+	SOCKS string `json:"socks"`
+	HTTP  string `json:"http"`
+}
+
+// LocalProxy returns the local proxy addresses. MyGo binds methods that
+// return one value and an error, so both addresses travel in one struct.
+func (s *VPNService) LocalProxy() (ProxyEndpoints, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.ProxyMgr == nil {
+		return ProxyEndpoints{}, nil
+	}
+	return ProxyEndpoints{SOCKS: s.ProxyMgr.SOCKSAddr, HTTP: s.ProxyMgr.HTTPAddr}, nil
 }
 
 // GetConfig returns the full application configuration
@@ -238,15 +258,13 @@ func (s *VPNService) Login(gwIdentifier, username, password, verifycode string, 
 	gwPort := gw.Port
 	gwAlgo := gw.Algo
 	s.Config.LastUseGateway = gw.Name
-
-	// Save or update credentials if remember is true
+	gw.LastUserName = username
 	if remember {
-		gw.LastUserName = username
 		accountFound := false
 		for idx := range gw.SavedAccounts {
 			if gw.SavedAccounts[idx].Username == username {
 				gw.SavedAccounts[idx].Password = password
-				gw.SavedAccounts[idx].Remember = remember
+				gw.SavedAccounts[idx].Remember = true
 				gw.SavedAccounts[idx].Auto = auto
 				accountFound = true
 				break
@@ -256,11 +274,14 @@ func (s *VPNService) Login(gwIdentifier, username, password, verifycode string, 
 			gw.SavedAccounts = append(gw.SavedAccounts, config.UserAccount{
 				Username: username,
 				Password: password,
-				Remember: remember,
+				Remember: true,
 				Auto:     auto,
 			})
 		}
-		_ = s.Config.SaveSettingXML("")
+	}
+	s.Config.Remember = remember
+	if err := s.Config.SaveSettingXML(""); err != nil {
+		s.Log("WARN", "保存网关与账号失败: %v", err)
 	}
 	s.mu.Unlock()
 
@@ -309,6 +330,10 @@ func (s *VPNService) Login(gwIdentifier, username, password, verifycode string, 
 
 	s.Log("SUCCESS", "VPN Tunnel fully connected and ready for traffic.")
 
+	socks, httpProxy := "", ""
+	if proxyMgr != nil {
+		socks, httpProxy = proxyMgr.SOCKSAddr, proxyMgr.HTTPAddr
+	}
 	return map[string]any{
 		"status":        "Connected",
 		"username":      username,
@@ -316,6 +341,8 @@ func (s *VPNService) Login(gwIdentifier, username, password, verifycode string, 
 		"loginAddress":  integration.Session.LoginAddr,
 		"resourceCount": len(resources),
 		"resources":     resources,
+		"socks":         socks,
+		"httpProxy":     httpProxy,
 	}, nil
 }
 
@@ -361,12 +388,18 @@ func (s *VPNService) GetStatus() map[string]any {
 	logCount := len(s.Logs)
 	s.logMu.Unlock()
 
+	socks, httpProxy := "", ""
+	if s.ProxyMgr != nil {
+		socks, httpProxy = s.ProxyMgr.SOCKSAddr, s.ProxyMgr.HTTPAddr
+	}
 	return map[string]any{
 		"status":         s.Status,
 		"statusDetail":   s.StatusDetail,
 		"resources":      s.Resources,
 		"lastUseGateway": s.Config.LastUseGateway,
 		"logCount":       logCount,
+		"socks":          socks,
+		"httpProxy":      httpProxy,
 	}
 }
 

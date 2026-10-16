@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/hygkui/v5vpn-rea-client/internal/crypto"
@@ -107,6 +108,33 @@ func SetUserDataDir(dir string) {
 	userDataDir = dir
 }
 
+// DefaultUserDataDir is where saved gateways and accounts live. It does not
+// depend on the desktop framework having started, so a config written on
+// one launch is found on the next.
+func DefaultUserDataDir() string {
+	if userDataDir != "" {
+		return userDataDir
+	}
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return ""
+	}
+	switch runtime.GOOS {
+	case "darwin":
+		return filepath.Join(home, "Library", "Application Support", "v5vpn-rea")
+	case "windows":
+		if app := os.Getenv("APPDATA"); app != "" {
+			return filepath.Join(app, "v5vpn-rea")
+		}
+		return filepath.Join(home, "AppData", "Roaming", "v5vpn-rea")
+	default:
+		if xdg := os.Getenv("XDG_DATA_HOME"); xdg != "" {
+			return filepath.Join(xdg, "v5vpn-rea")
+		}
+		return filepath.Join(home, ".local", "share", "v5vpn-rea")
+	}
+}
+
 // configCandidates returns the paths searched, in order, for a config file.
 // Production installs prefer the per-user data directory (mygo
 // PathUserData) so an auto-update does not stomp the saved credentials
@@ -115,8 +143,8 @@ func SetUserDataDir(dir string) {
 // developer workflow and tests still work out of the box.
 func configCandidates() []string {
 	candidates := []string{}
-	if userDataDir != "" {
-		candidates = append(candidates, filepath.Join(userDataDir, SettingXMLFilename))
+	if dir := DefaultUserDataDir(); dir != "" {
+		candidates = append(candidates, filepath.Join(dir, SettingXMLFilename))
 	}
 	candidates = append(candidates, SettingXMLFilename)
 	if exePath, err := os.Executable(); err == nil {
@@ -135,11 +163,15 @@ func UserDataDir() string { return userDataDir }
 // updater-driven application-directory replacement does not erase the
 // operator's saved credentials.
 func (cfg *AppConfig) saveToConfiguredPath(targetPath string) error {
-	if userDataDir != "" && targetPath == "" {
-		if err := os.MkdirAll(userDataDir, 0o700); err != nil {
-			return fmt.Errorf("cannot create user data dir %s: %w", userDataDir, err)
+	if targetPath == "" {
+		dir := DefaultUserDataDir()
+		if dir == "" {
+			return fmt.Errorf("no user data directory")
 		}
-		targetPath = filepath.Join(userDataDir, SettingXMLFilename)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return fmt.Errorf("cannot create user data dir %s: %w", dir, err)
+		}
+		targetPath = filepath.Join(dir, SettingXMLFilename)
 	}
 	return cfg.saveToPath(targetPath)
 }
