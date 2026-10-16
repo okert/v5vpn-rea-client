@@ -124,7 +124,7 @@ func (s *VPNService) CheckForUpdates() *UpdateInfo {
 	current := s.appVersion
 	s.mu.Unlock()
 	if current == "" {
-		current = "v0.1.9"
+		current = "v0.1.10"
 	}
 
 	repo := "hygkui/v5vpn-rea-client"

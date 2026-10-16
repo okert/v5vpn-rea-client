@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.10
+
+- README states this fork is the macOS build of hygkui/v5vpn-rea-client
+  and that it was tested on a MacBook Pro with Apple M3 Pro.
+
 ## 0.1.9
 
 - Local SOCKS5 (`127.0.0.1:2080`) and HTTP (`127.0.0.1:2081`) proxy.
