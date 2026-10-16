@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.11
+
+- Release builds upload to okert/v5vpn-rea-client.
+
 ## 0.1.10
 
 - README states this fork is the macOS build of hygkui/v5vpn-rea-client
