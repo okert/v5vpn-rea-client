@@ -55,7 +55,9 @@
 3. **获取授权资源**：`GET /vpn/user/portal/intergration.xml?version=2.0`
    - 获得 TCP/UDP 内网资源列表与端口、策略及 DNS。
 4. **隧道建立与数据透传**：
-   - 本地自动分配代理端口监听。
+   - 只在 `127.0.0.1` 监听一个 SOCKS5 代理（默认 `2080`）和一个 HTTP 代理（默认 `2081`）。
+   - 不修改系统网关、路由表、DNS 或系统代理，可与其它 VPN / 代理软件同时运行。
+   - 只有网关授权的地址和端口会转发。`port="1-65535"` 这类整段端口按范围匹配，不会为每个端口各开一个监听。
    - 建立 SSL 连接并发送 `CONNECT {TargetIP}:{TargetPort} HTTP/1.1\r\nCookie: VSG_SESSIONID={SessionID}` 进行全双工透传。
 5. **保活心跳**：`GET /vpn/user/portal/intergration.xml?period={interval}&version=2.0`。
 6. **安全登出**：`GET /vpn/user/logout`。
@@ -93,6 +95,17 @@ go build -o v5vpn-rea.exe ./internal/cmd
 ```bash
 .\v5vpn-rea.exe
 ```
+连上之后，菜单栏图标和已连接页面都会显示本地代理地址。把浏览器或客户端的代理单独设为：
+
+```
+SOCKS5  127.0.0.1:2080
+HTTP    127.0.0.1:2081
+```
+
+不要开启系统代理。不在授权范围内的目标会被拒绝，本机其它流量仍走原来的网络。
+
+窗口关闭按钮只隐藏窗口，VPN 保持连接。点 Dock 图标或菜单栏的「显示主界面」可以恢复。Dock 菜单里的「退出」和菜单栏的「完全退出」会断开并结束程序。
+
 也可在任意浏览器中访问本地 Web 管理控制台：
 ```
 http://127.0.0.1:45678
@@ -127,7 +140,7 @@ v5vpn-rea/
 │   ├── config/           # 配置文件解析与本地凭证导入 (setting.xml)
 │   ├── crypto/           # DES-CBC / AES-128-CBC 编解码核心算法实现
 │   ├── protocol/         # V5VPN 网关 REST/HTTPS 协议客户端与心跳管理器
-│   ├── proxy/            # 本地 TCP 端口映射与 SSL HTTP CONNECT 隧道代理引擎
+│   ├── proxy/            # 本地 SOCKS5/HTTP 代理与 SSL HTTP CONNECT 隧道引擎
 │   └── service/          # 供 MyGo 前端调用的强类型 IPC 业务服务
 ├── configs/              # 本地运行配置（含保存凭证，已移出版本控制）
 ├── assets/               # 原创多分辨率盾牌图标与静态资源
@@ -143,7 +156,7 @@ v5vpn-rea/
 |:---|:---|:---|:---|
 | Windows x64 / arm64 | WebView2 | WebView2 Runtime（Win11 自带；Win10 需安装） | 已实测（开发环境） |
 | Linux amd64 / arm64 | WebKitGTK | `libwebkit2gtk-4.1-0`（Debian/Ubuntu） | 仅编译通过，未实测 |
-| macOS amd64 / arm64 | WKWebView | 系统自带；分发需签名 + 公证 | 仅编译通过，未实测 |
+| macOS amd64 / arm64 | WKWebView | 系统自带；分发需签名 + 公证 | arm64 已用于本地代理连接；窗口关闭即隐藏，点 Dock 图标恢复 |
 
 mygo 在 Linux 各桌面环境下系统托盘 (`mygo.NewTray`) 的可用性差异较大，
 如果托盘失败主功能仍可工作，直接用浏览器访问 `http://127.0.0.1:45678`
@@ -191,8 +204,7 @@ mygo 内建了 ed25519 签名的自更新机制。`mygo.json` 的 `updates.publi
 | Linux | `~/.local/share/v5vpn-rea/setting.xml` |
 | macOS | `~/Library/Application Support/v5vpn-rea/setting.xml` |
 
-这些目录由 `mygo.App.Path(PathUserData)` 解析。**自更新不会擦掉用户配置**，
-因为 mygo build 把应用目录整体替换，而 setting.xml 不再放在那里。
+这些目录由程序启动时直接确定。网关、记住的用户名和密码只写在这台电脑的 `setting.xml` 里，不会进入 Git 仓库。**自更新不会擦掉用户配置**，因为 mygo build 替换的是应用目录，而 setting.xml 不在那里。
 
 如果想使用旧版「exe 同目录」的布局（例如便携式部署），把 `setting.xml`
 放在可执行文件旁边即可——`config.LoadSettingXML` 会按以下顺序回退：

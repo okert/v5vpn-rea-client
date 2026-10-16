@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.9
+
+- Local SOCKS5 (`127.0.0.1:2080`) and HTTP (`127.0.0.1:2081`) proxy.
+  Wide gateway port ranges such as `1-65535` match by range instead of
+  being dropped, and destinations outside the authorized resources are
+  refused. System routes, DNS and the system proxy are left unchanged.
+- Proxy addresses are shown in the menu bar and on the connected page.
+- Gateways and remembered accounts are loaded from the user data
+  directory on startup.
+- The window close button hides the window. A Dock click or the tray
+  "显示主界面" item shows it again. Dock Quit exits without a prompt.
+- The connected state is a separate page, so the macOS web view does
+  not stay blank after login.
+
 ## 0.1.1
 
 - "Check for updates" buttons in the login and connected footers
