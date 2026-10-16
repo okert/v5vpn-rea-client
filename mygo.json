@@ -27,7 +27,7 @@
   "out": "build",
   "updates": {
     "publicKey": "v5XetXmz4jCAgqdZ83E8ygOZsv2bEDO0PRf0rRYyXcA=",
-    "github": "hygkui/v5vpn-rea-client",
+    "github": "okert/v5vpn-rea-client",
     "tagPrefix": "v",
     "deltas": 3
   },
