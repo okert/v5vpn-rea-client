@@ -24,7 +24,7 @@ var uiEmbedFS embed.FS
 // TestAppVersionMatchesMygoJSON test fails the build if they drift.
 // NOTE: "2.0" is the gateway protocol version (/vpn/version.xml), not the
 // app version — do not "fix" this back to v2.0.0.
-var AppVersion = "v0.1.11"
+var AppVersion = "v0.1.12"
 
 var mainWindow *mygo.Window
 
@@ -158,7 +158,6 @@ func main() {
 		// Setup System Tray with crisp 32x32 PNG Icon
 		tray, trayErr := mygo.NewTray(mygo.TrayOptions{
 			Icon:    generateTrayIcon(false),
-			Title:   "V5VPN",
 			ToolTip: "V5VPN 客户端 (未连接)",
 		})
 		if trayErr != nil {

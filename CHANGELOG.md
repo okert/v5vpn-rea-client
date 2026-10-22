@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.12
+
+- The menu bar item shows only the shield icon.
+
 ## 0.1.11
 
 - Release builds upload to okert/v5vpn-rea-client.
