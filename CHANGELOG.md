@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.13
+
+- LeadSec session ids that contain a comma are sent without quotes.
+  Quoted `VSG_SESSIONID` values make the gateway hang, so login stopped
+  on the resource list with a 12s timeout.
+
 ## 0.1.12
 
 - The menu bar item shows only the shield icon.

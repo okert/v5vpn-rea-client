@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"net/textproto"
 	"net/url"
 	"strconv"
 	"strings"
@@ -201,6 +202,30 @@ func (c *Client) Login(username, password, verifycode string) (*IntegrationInfo,
 	return c.Integration, nil
 }
 
+// setRawSessionCookie sends VSG_SESSIONID without RFC 6265 quoting.
+//
+// LeadSec session ids can contain a comma. net/http's cookie jar then emits
+// Cookie: VSG_SESSIONID="a,b". This gateway never answers that request, so
+// login stops at "获取内网受保护资源失败" after the client timeout. The id is
+// also stored unquoted and attached here so the jar's quoted copy is dropped.
+func setRawSessionCookie(req *http.Request, sessionID string) {
+	if sessionID == "" || req == nil {
+		return
+	}
+	kept := req.Header["Cookie"][:0]
+	for _, line := range req.Header["Cookie"] {
+		if !strings.HasPrefix(strings.ToLower(textproto.TrimString(line)), "vsg_sessionid=") {
+			kept = append(kept, line)
+		}
+	}
+	raw := "VSG_SESSIONID=" + sessionID
+	if len(kept) == 0 {
+		req.Header["Cookie"] = []string{raw}
+		return
+	}
+	req.Header["Cookie"] = append(kept, raw)
+}
+
 // fetchIntegrationInfo retrieves the integration.xml containing resources and policies
 func (c *Client) fetchIntegrationInfo() (*IntegrationInfo, error) {
 	reqURL := fmt.Sprintf("%s/vpn/user/portal/intergration.xml?version=2.0", c.BaseURL)
@@ -209,6 +234,9 @@ func (c *Client) fetchIntegrationInfo() (*IntegrationInfo, error) {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", "LeadSec VPN Client")
+	// CookieJar quotes values that contain a comma. LeadSec hangs the
+	// request when it sees Cookie: VSG_SESSIONID="id,with,comma".
+	setRawSessionCookie(req, c.SessionID)
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -249,7 +277,14 @@ func (c *Client) startHeartbeatLoop(interval time.Duration) {
 
 				probeURL := fmt.Sprintf("%s/vpn/user/portal/intergration.xml?period=%d&version=2.0",
 					c.BaseURL, int(interval.Seconds()))
-				resp, err := c.HTTPClient.Get(probeURL)
+				req, reqErr := http.NewRequest("GET", probeURL, nil)
+				if reqErr != nil {
+					c.Logger("WARN", "Heartbeat probe failed: %v", reqErr)
+					continue
+				}
+				req.Header.Set("User-Agent", "LeadSec VPN Client")
+				setRawSessionCookie(req, c.SessionID)
+				resp, err := c.HTTPClient.Do(req)
 				if err != nil {
 					c.Logger("WARN", "Heartbeat probe failed: %v", err)
 				} else {
